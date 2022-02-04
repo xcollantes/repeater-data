@@ -1,22 +1,17 @@
 """Get data for repeaters."""
 
-import json
-import os
+import csv
 import requests
 from bs4 import BeautifulSoup as Soup
+from typing import List
 from absl import app
 from absl import logging
 from absl import flags
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("data_path", None, "Output location of data file.")
-flags.DEFINE_string("webdriver", None, "Path to webdriver.")
-flags.DEFINE_string("browser", None, "Path to web browser.")
-flags.mark_flag_as_required("data_path")
-flags.mark_flag_as_required("webdriver")
-flags.mark_flag_as_required("browser")
 
-logging.set_verbosity(logging.DEBUG)
+logging.set_verbosity(logging.INFO)
 
 
 def getStateName(responseText: str) -> str:
@@ -29,7 +24,10 @@ def getStateName(responseText: str) -> str:
     """
     soup = Soup(responseText, "html.parser")
     logging.debug("Ingesting soup: %s", soup.prettify())
-    return soup.title.get_text()
+    if soup.title:
+        return soup.title.get_text()
+    else:
+        return "***No state found."
 
 
 def writeToFile(content: str, fileout: str) -> None:
@@ -44,14 +42,12 @@ def writeToFile(content: str, fileout: str) -> None:
         dataFile.write(soup.prettify())
 
 
-def sendRequest(countryCode: str, stateId: int,
-                bandId: int) -> requests.Response:
+def sendRequest(countryCode: str, stateId: int) -> requests.Response:
     """Prepare url and send ping to RepeaterBook.
 
     Args:
         courntryCode: Two letter country code.
         stateId: Repeater Book's special ID for each state.
-        bandId: Repeater Books's special ID for bands.
 
     Returns: Response object.
     """
@@ -59,7 +55,7 @@ def sendRequest(countryCode: str, stateId: int,
     try:
         url: str = ("https://www.repeaterbook.com/repeaters/Display_SS.php"
                     + f"?country_code={countryCode.upper()}&state_id={stateId}"
-                    + f"&band={bandId}&loc=%&call=%&use=%")
+                    + "&loc=%&call=%&use=%")
         res = requests.get(url)
     except Exception as e:
         logging.warning("Could not ping RepeaterBook: %s", e)
@@ -68,14 +64,36 @@ def sendRequest(countryCode: str, stateId: int,
 
 def main(argv) -> None:
     logging.debug("Starting scrape...")
-
     # COUNTRY_CODE: str = "US"
     # STATE_ID: int = 53
     # BAND_ID: int = 14  # 2 meter
+    output: str = ""
+    stateIds: dict[str] = []
+    frequencies: dict[str] = []
 
-    response = sendRequest(countryCode="US", stateId=53, bandId=14)
-    writeToFile(response.text, FLAGS.data_path)
-    logging.info(getStateName(response.text))
+    with open("results/states.tsv", "r") as stateList:
+        for row in csv.reader(stateList, delimiter="\t"):
+            stateIds.append(row)
+
+    # for stateId, state in stateIds:
+    #     logging.info(f"Reading: {stateId} {state}")
+    #     response = sendRequest(countryCode="US", stateId=stateId)
+
+    response = sendRequest(countryCode="US", stateId=53)
+    soup = Soup(response.text, "html.parser")
+    frequencyTable = soup.select(
+        'table[class="w3-table sortable w3-responsive w3-striped"]')[0]
+
+    headerElements: List = frequencyTable.select("th")
+    frequencyRows: List = frequencyTable.select("tr")
+    for row in frequencyRows:
+        print("ROW: ", row)
+        rowDetails = row.select("td")
+        for cell in rowDetails:
+            print("    CELL: ", cell.get_text().strip())
+
+    # result = str()
+    # writeToFile(result, FLAGS.data_path)
 
 
 if __name__ == "__main__":
