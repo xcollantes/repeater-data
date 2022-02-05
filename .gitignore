@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Repeater data outputs
+repeater_data/*.tsv
