@@ -1,9 +1,7 @@
-# 
+# Get Repeater Data
 
-## Common issues 
+## data_deps directory
+List of available states on repeaterbook.com used as parameters when pinging repeaterbook.com.  
 
-**Chrome browser and Chromedriver must match versions.**
-
-Debian Chrome browser: https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_98.0.4758.48-1_amd64.deb 
-
-Chromedriver: https://chromedriver.storage.googleapis.com/index.html 
+## repeater_data directory
+Contains the output of the program with each state with one TSV file.  
